@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Keystroke Arcade — Typing Speed Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#1a0e2e;
+    --bg-mid:#3a1c5e;
+    --pink:#ff3cac;
+    --cyan:#19ffe0;
+    --gold:#ffd60a;
+    --lavender:#e9e6f5;
+    --muted:#8c7ae6;
+    --panel:rgba(255,255,255,0.04);
+    --panel-border:rgba(255,255,255,0.08);
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:'Poppins', sans-serif;
+    color:var(--lavender);
+    background:
+      radial-gradient(circle at 15% 20%, rgba(255,107,53,0.15), transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(25,255,224,0.12), transparent 45%),
+      linear-gradient(160deg, var(--bg-deep), var(--bg-mid));
+    display:flex;
+    justify-content:center;
+    padding:32px 16px;
+  }
+
+  .arcade{
+    width:100%;
+    max-width:760px;
+  }
+
+  .title{
+    text-align:center;
+    font-size:clamp(28px, 6vw, 44px);
+    font-weight:700;
+    letter-spacing:4px;
+    margin:0 0 4px;
+    background:linear-gradient(90deg, var(--cyan), var(--pink));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    text-shadow:0 0 18px rgba(255,60,172,0.25);
+  }
+
+  .subtitle{
+    text-align:center;
+    color:var(--muted);
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    letter-spacing:2px;
+    margin-bottom:24px;
+    text-transform:uppercase;
+  }
+
+  /* ---- Stats + Gauge row ---- */
+  .dashboard{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:16px;
+    padding:16px 20px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+  }
+
+  .stats{
+    display:flex;
+    gap:24px;
+    flex-wrap:wrap;
+  }
+
+  .stat{
+    text-align:left;
+  }
+
+  .stat-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+
+  .stat-value{
+    font-size:26px;
+    font-weight:700;
+    font-family:'JetBrains Mono', monospace;
+  }
+
+  .stat-value.time{ color:var(--gold); }
+  .stat-value.acc{ color:var(--cyan); }
+  .stat-value.wpm{ color:var(--pink); }
+
+  /* ---- Gauge (signature element) ---- */
+  .gauge-wrap{
+    width:160px;
+    flex-shrink:0;
+    text-align:center;
+  }
+
+  .gauge-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    color:var(--muted);
+    margin-top:-4px;
+  }
+
+  #needle{
+    transform-origin: 100px 108px;
+    transition: transform 0.25s ease-out;
+  }
+
+  /* ---- Difficulty selector ---- */
+  .difficulty{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+  }
+
+  .diff-btn{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    padding:8px 18px;
+    border-radius:999px;
+    border:1px solid var(--panel-border);
+    background:var(--panel);
+    color:var(--lavender);
+    cursor:pointer;
+    transition:all 0.2s ease;
+  }
+
+  .diff-btn:hover{ border-color:var(--cyan); color:var(--cyan); }
+
+  .diff-btn.active{
+    background:linear-gradient(90deg, var(--pink), var(--muted));
+    border-color:transparent;
+    color:#fff;
+    box-shadow:0 0 16px rgba(255,60,172,0.35);
+  }
+
+  /* ---- Typing area ---- */
+  .type-area{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:16px;
+    padding:24px;
+    margin-bottom:20px;
+    cursor:text;
+    position:relative;
+  }
+
+  .passage{
+    font-family:'JetBrains Mono', monospace;
+    font-size:clamp(16px, 2.6vw, 20px);
+    line-height:1.8;
+    letter-spacing:0.5px;
+  }
+
+  .passage span{ position:relative; }
+  .passage .correct{ color:var(--cyan); }
+  .passage .incorrect{ color:var(--pink); text-decoration:underline; text-decoration-color:var(--pink); }
+  .passage .current{
+    background:rgba(255,214,10,0.25);
+    border-radius:3px;
+    box-shadow:0 0 0 1px var(--gold);
+  }
+  .passage .pending{ color:rgba(233,230,245,0.35); }
+
+  #hidden-input{
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
+  }
+
+  .hint{
+    margin-top:14px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--muted);
+    letter-spacing:1px;
+  }
+
+  /* ---- Action buttons ---- */
+  .actions{
+    display:flex;
+    justify-content:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  .action-btn{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    padding:10px 22px;
+    border-radius:10px;
+    border:none;
+    cursor:pointer;
+    transition:transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .action-btn:active{ transform:translateY(2px); }
+
+  .restart{
+    background:linear-gradient(90deg, var(--cyan), var(--muted));
+    color:#0b0c1c;
+    box-shadow:0 0 14px rgba(25,255,224,0.3);
+  }
+
+  .export{
+    background:transparent;
+    border:1px solid var(--gold);
+    color:var(--gold);
+  }
+  .export:hover{ box-shadow:0 0 14px rgba(255,214,10,0.3); }
+
+  /* ---- Result overlay ---- */
+  .result{
+    margin-top:18px;
+    text-align:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:14px;
+    color:var(--gold);
+    min-height:20px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    #needle{ transition:none; }
+    .action-btn{ transition:none; }
+  }
+
+  .footer{
+    margin-top:28px;
+    text-align:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:1px;
+    color:var(--muted);
+  }
+
+  .footer strong{
+    color:var(--gold);
+  }
+</style>
+</head>
+<body>
+<div class="arcade">
+  <h1 class="title">KEYSTROKE ARCADE</h1>
+  <div class="subtitle"> type the glowing text — beat your own record </div>
+
+  <div class="dashboard">
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Time</div>
+        <div class="stat-value time" id="time-val">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Accuracy</div>
+        <div class="stat-value acc" id="acc-val">100%</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">WPM</div>
+        <div class="stat-value wpm" id="wpm-val">0</div>
+      </div>
+    </div>
+
+    <div class="gauge-wrap">
+      <svg viewBox="0 0 200 120" width="160">
+        <defs>
+          <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#19ffe0"/>
+            <stop offset="50%" stop-color="#ffd60a"/>
+            <stop offset="100%" stop-color="#ff3cac"/>
+          </linearGradient>
+        </defs>
+        <path d="M20 110 A 80 80 0 0 1 180 110" fill="none" stroke="url(#gaugeGrad)" stroke-width="12" stroke-linecap="round" opacity="0.35"/>
+        <line id="needle" x1="100" y1="108" x2="100" y2="35" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="100" cy="108" r="6" fill="#ffffff"/>
+      </svg>
+      <div class="gauge-label">SPEED METER</div>
+    </div>
+  </div>
+
+  <div class="difficulty" id="difficulty">
+    <button class="diff-btn active" data-level="easy" data-time="60">Easy · 60s</button>
+    <button class="diff-btn" data-level="medium" data-time="45">Medium · 45s</button>
+    <button class="diff-btn" data-level="hard" data-time="30">Hard · 30s</button>
+  </div>
+
+  <div class="type-area" id="type-area">
+    <div class="passage" id="passage"></div>
+    <input id="hidden-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" />
+    <div class="hint">Click anywhere here and start typing. Press Enter or finish the text to end early.</div>
+  </div>
+
+  <div class="actions">
+    <button class="action-btn restart" id="restart-btn">Restart</button>
+    <button class="action-btn export" id="export-btn">Export Results (JSON)</button>
+  </div>
+
+  <div class="result" id="result"></div>
+
+  <footer class="footer">
+    Made with  by <strong>Himanshu28</strong> &mdash; &copy; 2026 Keystroke Arcade. All rights reserved.
+  </footer>
+</div>
+
+<script>
+  const PASSAGES = {
+    easy: [
+      "the sun was warm and the breeze was light and soft",
+      "she likes to read books under the old oak tree.",
+      "we walked to the market and bought fresh bread.",
+      "my cat sleeps all day and plays all night.",
+      "he made a cup of tea and sat by the window.",
+      "the kids ran across the park chasing a red kite.",
+      "i need to water the plants before it gets dark.",
+      "they watched the stars and talked until midnight."
+    ],
+    medium: [
+      "Programming rewards patience: small bugs often hide behind simple typos.",
+      "The city lights flickered as rain tapped gently against the window pane.",
+      "Good habits compound slowly, but their results become impossible to ignore.",
+      "She tuned her guitar, took a breath, and stepped onto the quiet stage.",
+      "A balanced diet, regular sleep, and short walks can boost focus a lot.",
+      "The old library smelled of dust, paper, and a hundred forgotten stories.",
+      "He saved his work, closed the laptop, and finally went outside for fresh air.",
+      "Traveling alone taught her more about herself than any book ever could."
+    ],
+    hard: [
+      "Quantum computers exploit superposition & entanglement to process information in fundamentally non-classical ways!",
+      "\"Wow,\" she whispered, \"the algorithm's efficiency improved by 47% after we refactored the recursive function.\"",
+      "Despite the storm's ferocity, the lighthouse keeper—stubborn as ever—refused to abandon his post at 2:30 AM.",
+      "The contract stipulated a 15% penalty (plus interest) for late delivery, effective from January 1st, 2027.",
+      "\"Without data,\" the analyst argued, \"we're just guessing—and guessing isn't a strategy, it's a gamble!\"",
+      "Encryption keys—especially 256-bit ones—are exponentially harder to brute-force than their 128-bit counterparts.",
+      "The chef's signature dish combined saffron, smoked paprika & a hint of citrus; it cost $42.50 per plate.",
+      "By 11:45 PM, the server had processed 3,200 requests—nearly double yesterday's peak load!"
+    ]
+    
+  };
+
+  const passageEl = document.getElementById('passage');
+  const hiddenInput = document.getElementById('hidden-input');
+  const typeArea = document.getElementById('type-area');
+  const timeVal = document.getElementById('time-val');
+  const accVal = document.getElementById('acc-val');
+  const wpmVal = document.getElementById('wpm-val');
+  const needle = document.getElementById('needle');
+  const resultEl = document.getElementById('result');
+  const restartBtn = document.getElementById('restart-btn');
+  const exportBtn = document.getElementById('export-btn');
+  const diffButtons = document.querySelectorAll('.diff-btn');
+
+  let currentLevel = 'easy';
+  let timeLimit = 60;
+  let timeLeft = timeLimit;
+  let currentText = '';
+  let typedChars = [];
+  let timerInterval = null;
+  let startTime = null;
+  let finished = false;
+
+  // history kept in memory only (export to download as JSON)
+  let history = [];
+
+  function pickPassage(level){
+    const list = PASSAGES[level];
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function renderPassage(){
+    passageEl.innerHTML = '';
+    currentText.split('').forEach((ch, i) => {
+      const span = document.createElement('span');
+      span.textContent = ch;
+      if (i < typedChars.length){
+        span.classList.add(typedChars[i] === ch ? 'correct' : 'incorrect');
+      } else if (i === typedChars.length){
+        span.classList.add('current');
+      } else {
+        span.classList.add('pending');
+      }
+      passageEl.appendChild(span);
+    });
+  }
+
+  function updateGauge(wpm){
+    const clamped = Math.max(0, Math.min(150, wpm));
+    const angle = -90 + (clamped / 150) * 180;
+    needle.setAttribute('transform', `rotate(${angle} 100 108)`);
+  }
+
+  function computeStats(){
+    const correct = typedChars.filter((c, i) => c === currentText[i]).length;
+    const total = typedChars.length;
+    const accuracy = total === 0 ? 100 : Math.round((correct / total) * 100);
+
+    let wpm = 0;
+    if (startTime){
+      const elapsedMinutes = (Date.now() - startTime) / 60000;
+      if (elapsedMinutes > 0){
+        wpm = Math.round((correct / 5) / elapsedMinutes);
+      }
+    }
+    accVal.textContent = accuracy + '%';
+    wpmVal.textContent = wpm;
+    updateGauge(wpm);
+    return { wpm, accuracy, correct, total };
+  }
+
+  function startTimer(){
+    timerInterval = setInterval(() => {
+      timeLeft -= 1;
+      timeVal.textContent = timeLeft + 's';
+      computeStats();
+      if (timeLeft <= 0){
+        finishRound();
+      }
+    }, 1000);
+  }
+
+  function finishRound(){
+    if (finished) return;
+    finished = true;
+    clearInterval(timerInterval);
+    const stats = computeStats();
+    resultEl.textContent =
+      `Round complete — ${stats.wpm} WPM, ${stats.accuracy}% accuracy (${currentLevel.toUpperCase()})`;
+    history.push({
+      date: new Date().toISOString(),
+      level: currentLevel,
+      wpm: stats.wpm,
+      accuracy: stats.accuracy
+    });
+    hiddenInput.blur();
+  }
+
+  function resetRound(){
+    clearInterval(timerInterval);
+    finished = false;
+    startTime = null;
+    typedChars = [];
+    timeLeft = timeLimit;
+    currentText = pickPassage(currentLevel);
+    timeVal.textContent = timeLeft + 's';
+    accVal.textContent = '100%';
+    wpmVal.textContent = '0';
+    updateGauge(0);
+    resultEl.textContent = '';
+    hiddenInput.value = '';
+    renderPassage();
+  }
+
+  // --- Input handling ---
+  typeArea.addEventListener('click', () => hiddenInput.focus());
+
+  hiddenInput.addEventListener('keydown', (e) => {
+    if (finished) return;
+
+    if (e.key === 'Backspace'){
+      e.preventDefault();
+      if (typedChars.length > 0) typedChars.pop();
+      renderPassage();
+      computeStats();
+      return;
+    }
+
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      if (typedChars.length > 0) finishRound();
+      return;
+    }
+
+    // ignore non-character keys
+    if (e.key.length !== 1) return;
+
+    e.preventDefault();
+    if (!startTime){
+      startTime = Date.now();
+      startTimer();
+    }
+
+    if (typedChars.length < currentText.length){
+      typedChars.push(e.key);
+      renderPassage();
+      computeStats();
+
+      if (typedChars.length === currentText.length){
+        finishRound();
+      }
+    }
+  });
+
+  // --- Difficulty selection ---
+  diffButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      diffButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentLevel = btn.dataset.level;
+      timeLimit = parseInt(btn.dataset.time, 10);
+      resetRound();
+    });
+  });
+
+  restartBtn.addEventListener('click', resetRound);
+
+  exportBtn.addEventListener('click', () => {
+    if (history.length === 0){
+      resultEl.textContent = 'No completed rounds yet — finish at least one round first!';
+      return;
+    }
+    const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'typing_results.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // init
+  resetRound();
+</script>
+</body>
+</html>

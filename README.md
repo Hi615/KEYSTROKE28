@@ -2,7 +2,7 @@
 
 A small typing speed game I built for fun — type out random sentences, see your WPM and accuracy update live, and watch a little speedometer needle react to how fast you're going.
 
-Try it here: https://hi615.github.io/KEYSTROKE28/
+Try it here: https://keystroke28.netlify.app/
 
 ## What it does
 
